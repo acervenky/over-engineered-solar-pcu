@@ -116,7 +116,7 @@ The AI literally reads its own past decisions from the SQLite database, analyzes
 
 ### 🧠 Agentic AI-Powered Lead-Acid BMS
 While Lithium batteries have sophisticated built-in Battery Management Systems (BMS), traditional Lead-Acid batteries are notoriously "dumb." The Agent steps in to act as a **Hyper-Intelligent BMS** for the old-school 40Ah Lead-Acid chemistry:
-- **Dynamic SOC Estimation**: Estimates State of Charge not just on raw voltage, but by learning voltage sag under different loads over time.
+- **Dynamic SOC Estimation**: Estimates State of Charge accurately using **Coulomb Counting** via the WCS1700 Hall-Effect current sensor, moving away from unreliable voltage-sag approximations.
 - **Predictive Health Conservation**: Prevents damaging deep discharges during cloudy days by querying the weather forecast and pre-emptively switching to the grid *before* the battery drains.
 - **Adaptive Charging**: Automatically adjusts its target reserves based on seasons and sunlight availability to prevent sulfation.
 - **Panel Maintenance Tracking**: Continuously monitors the all-time peak solar power versus recent daily peaks to detect slow efficiency degradation, automatically sending alerts when the panels need cleaning.
@@ -125,6 +125,7 @@ While Lithium batteries have sophisticated built-in Battery Management Systems (
 - **Emergency Detection**: Critical battery → immediate grid switch.
 - **Night Mode**: Sunset approaching → preserve battery for night backup.
 - **Surplus Utilization**: Battery full + sun → aggressively use solar.
+- **Future-Proof for Time-of-Day (ToD) Tariffs**: As India rolls out new ToD electricity metering policies, the AI can seamlessly adapt to use cheaper grid power during daytime hours (saving battery wear) and aggressively discharge the battery during peak, expensive nighttime tariff hours to maximize financial savings.
 
 ---
 
@@ -139,7 +140,7 @@ While Lithium batteries have sophisticated built-in Battery Management Systems (
 | 5 | Portronics CarPower One | 150W Modified Sine Wave | 1 | ₹2,599 | Efficient DC-AC conversion |
 | 6 | 4-Channel Relay Module | 5V logic, opto-isolated | 1 | ₹169 | Switches between Grid and Solar |
 | 7 | DC-DC Buck Converter | 4.5-40V to 5V Step Down | 1 | ₹249 | Powers Pico W and relays |
-| 8 | Sensors | Voltage dividers, Current, AC | Assorted | ₹500 | Telemetry gathering |
+| 8 | Sensors | Voltage dividers, WCS1700 Current | Assorted | ₹500 | Telemetry gathering |
 | 9 | DC/AC Breakers & Boxes | 16A/25A MCBs | Assorted | ₹1,700 | Safety and isolation |
 | 10 | Cables & Connectors | 4sqmm DC, MC4, Lugs | Assorted | ₹1,500 | Wiring everything up |
 

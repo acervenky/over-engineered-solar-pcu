@@ -1,4 +1,4 @@
-""""
+"""
 Smart Solar PCU - Configuration File
 Edit these values for your specific setup
 """
@@ -33,9 +33,9 @@ V_PANEL_MIN = 15.0            # Minimum voltage to consider active
 V_PANEL_ACTIVE = 18.0         # Good charging voltage
 
 # ============ CURRENT SENSOR ============
-# ACS712-05 Configuration
+# WCS1700 Configuration
 CURRENT_SENSOR_ZERO_VOLT = 1.65   # 0A output (VCC/2)
-CURRENT_SENSITIVITY = 0.185       # V/A (185mV/A for ACS712-05)
+CURRENT_SENSITIVITY = 0.033       # V/A (33mV/A for WCS1700)
 MAX_CHARGE_CURRENT = 4.0          # Max charge (C10 for 40Ah = 4A)
 MAX_DISCHARGE_CURRENT = 8.0       # Max discharge current
 
@@ -85,4 +85,3 @@ UPDATE_INTERVAL_MS = 1000     # Main loop interval
 TELEMETRY_INTERVAL_MS = 10000 # Send data to server
 AI_FETCH_INTERVAL_MS = 300000 # Fetch predictions (5 min)
 SENSOR_SAMPLES = 10           # ADC samples for averaging
-"

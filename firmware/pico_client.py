@@ -17,6 +17,7 @@ import uasyncio as asyncio
 # ── Import configuration from config.py ───────────────────────────
 try:
     from config import WIFI_SSID, WIFI_PASSWORD, SERVER_URL, API_KEY
+    from config import CURRENT_SENSOR_ZERO_VOLT, CURRENT_SENSITIVITY, BATTERY_CAPACITY_AH
     # Convert HTTP to WebSocket URL
     SERVER_WS_URL = SERVER_URL.replace("http://", "ws://").replace("https://", "wss://")
     if not SERVER_WS_URL.endswith("/ws/pico"):
@@ -27,6 +28,9 @@ try:
         "server_url": SERVER_WS_URL,
         "api_key": API_KEY,
         "interval_s": 30,
+        "zero_volt": CURRENT_SENSOR_ZERO_VOLT,
+        "sensitivity": CURRENT_SENSITIVITY,
+        "capacity_ah": BATTERY_CAPACITY_AH,
     }
 except ImportError:
     # Fallback to hardcoded values if config.py import fails
@@ -36,6 +40,9 @@ except ImportError:
         "server_url": "ws://YOUR_SERVER_IP:8000/ws/pico",
         "api_key": "YOUR_API_KEY",
         "interval_s": 30,
+        "zero_volt": 1.65,
+        "sensitivity": 0.033,
+        "capacity_ah": 40.0,
     }
 
 # ── GPIO / hardware pins (adjust to your wiring) ──────────────────
@@ -57,27 +64,24 @@ LED_FAULT = machine.Pin(9, machine.Pin.OUT)     # Fault Status
 # ── ADC channels (adjust to your voltage dividers / shunts) ──────
 BAT_V_ADC   = machine.ADC(26)
 PANEL_V_ADC = machine.ADC(27)
+BAT_I_ADC   = machine.ADC(28)
 GRID_OK_PIN = machine.Pin(5, machine.Pin.IN, machine.Pin.PULL_UP)
 
 # ADC scale factors — calibrate to your hardware
 BAT_V_SCALE   = 15.0 / 65535   # e.g. 1:5 divider on 3V3 ref
 PANEL_V_SCALE = 24.0 / 65535
-BAT_SHUNT_SCALE = 0.05          # amps per ADC unit — needs INA219 in real life
 
 
-def read_telemetry(switches: int, source: str) -> dict:
+def read_telemetry(switches: int, source: str, current_soc: float, bat_i: float) -> dict:
     bat_v   = BAT_V_ADC.read_u16()   * BAT_V_SCALE
     panel_v = PANEL_V_ADC.read_u16() * PANEL_V_SCALE
     grid_ok = bool(GRID_OK_PIN.value())
 
-    # Crude SOC estimate from voltage (12V lead-acid)
-    soc = max(0, min(100, (bat_v - 10.5) / (12.8 - 10.5) * 100))
-
     return {
         "type":     "telemetry",
         "bat_v":    round(bat_v, 3),
-        "bat_i":    0.0,                 # Replace with INA219 reading
-        "bat_soc":  round(soc, 1),
+        "bat_i":    round(bat_i, 3),
+        "bat_soc":  round(current_soc, 1) if current_soc is not None else 0.0,
         "panel_v":  round(panel_v, 3),
         "panel_i":  0.0,                 # Replace with INA219 reading
         "grid_ok":  grid_ok,
@@ -161,6 +165,7 @@ async def run():
 
     source   = "SOLAR"
     switches = 0
+    current_soc = None
 
     while True:
         try:
@@ -170,12 +175,31 @@ async def run():
                 await ws.send(json.dumps({"type": "auth", "key": CONFIG["api_key"]}))
 
                 last_send = 0
+                last_soc_ms = time.ticks_ms()
+                
                 while True:
                     LED_PIN.toggle()
+                    
+                    # --- Coulomb Counting ---
+                    now_ms = time.ticks_ms()
+                    dt_s = time.ticks_diff(now_ms, last_soc_ms) / 1000.0
+                    if dt_s <= 0:
+                        dt_s = 1.0 # Fallback
+                    last_soc_ms = now_ms
+                    
+                    bat_v = BAT_V_ADC.read_u16() * BAT_V_SCALE
+                    adc_v = BAT_I_ADC.read_u16() * (3.3 / 65535)
+                    bat_i = (adc_v - CONFIG["zero_volt"]) / CONFIG["sensitivity"]
+                    
+                    if current_soc is None:
+                        current_soc = max(0.0, min(100.0, (bat_v - 10.5) / (12.8 - 10.5) * 100))
+                    else:
+                        soc_change = (bat_i * dt_s) / (CONFIG["capacity_ah"] * 36)
+                        current_soc = max(0.0, min(100.0, current_soc + soc_change))
 
                     now = time.time()
                     if now - last_send >= CONFIG["interval_s"]:
-                        telemetry = read_telemetry(switches, source)
+                        telemetry = read_telemetry(switches, source, current_soc, bat_i)
                         await ws.send(json.dumps(telemetry))
                         last_send = now
                         print(f"[TX] SOC={telemetry['bat_soc']}% panel={telemetry['panel_v']}V")
